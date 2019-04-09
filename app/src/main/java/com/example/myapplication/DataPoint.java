@@ -8,8 +8,7 @@ public class DataPoint {
     float accelerometer_y = 0.0f;
     float accelerometer_z = 0.0f;
 
-    @Override
-    public String toString() {
-        return "sam\n"  ;//String.format("%l,%d,%d,%f,%f,%f", time, latitude, longitude, accelerometer_x, accelerometer_y, accelerometer_z);
+    public String toCSV() {
+        return String.format("%d,%f,%f,%f,%f,%f\n", time, latitude, longitude, accelerometer_x, accelerometer_y, accelerometer_z);
     }
 }

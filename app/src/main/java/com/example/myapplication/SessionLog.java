@@ -20,7 +20,7 @@ public class SessionLog {
 
     public void write(DataPoint dataPoint) {
 
-        buffer += dataPoint.toString();
+        buffer += dataPoint.toCSV();
 
         if(buffer.length() > 1024) {
             flush();
