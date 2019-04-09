@@ -39,12 +39,16 @@ public class Session {
         return state;
     }
 
-    public void onAccelerometerEvent(float x, float y, float z) {
+    public DataPoint getLastDataPoint() {
+        return lastDataPoint;
+    }
+
+    public void onAccelerometerEvent(long time, float x, float y, float z) {
         if(getState() != State.STARTED) {
             return;
         }
 
-        lastDataPoint.time = System.currentTimeMillis();
+        lastDataPoint.time = time;
         lastDataPoint.accelerometer_x = x;
         lastDataPoint.accelerometer_y = y;
         lastDataPoint.accelerometer_z = z;
@@ -52,24 +56,15 @@ public class Session {
         sessionLog.write(lastDataPoint);
     }
 
-    public void onGeoEvent(long latitude, long longitude) {
+    public void onGeoEvent(long time, double latitude, double longitude) {
         if(getState() != State.STARTED) {
             return;
         }
 
-        lastDataPoint.time = System.currentTimeMillis();
+        lastDataPoint.time = time;
         lastDataPoint.latitude = latitude;
         lastDataPoint.longitude = longitude;
 
         sessionLog.write(lastDataPoint);
-    }
-
-    public float getBumpScore() {
-        if(lastDataPoint == null) {
-            return 0.0f;
-        }
-        else {
-            return lastDataPoint.accelerometer_y;
-        }
     }
 }

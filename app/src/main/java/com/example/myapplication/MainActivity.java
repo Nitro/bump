@@ -1,75 +1,61 @@
 package com.example.myapplication;
 
+import android.Manifest;
 import android.app.AlarmManager;
 import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
 import android.net.Uri;
-import android.os.StrictMode;
+import android.support.v4.app.ActivityCompat;
+import android.support.v4.content.FileProvider;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
-import android.hardware.Sensor;
-import android.hardware.SensorEvent;
-import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
-
-import java.io.File;
-
 import io.reactivex.Observable;
 import io.reactivex.Observer;
 import io.reactivex.disposables.Disposable;
 
-public class MainActivity extends AppCompatActivity {
-    private static final String TAG = "CycleCrowd";
+public class MainActivity extends AppCompatActivity  {
+    public static class ViewModel
+    {
+        Session.State state = Session.State.NONE;
+        DataPoint dataPoint = new DataPoint();
+
+        public ViewModel() {
+        }
+
+        public ViewModel(Session.State state, DataPoint dataPoint) {
+            this.state = state;
+            this.dataPoint = dataPoint;
+        }
+    }
+
+    private TextView location_txt;
     private TextView bump_score_txt;
     private Button start_button;
     private Button share_button;
     private PendingIntent scheduledIntent;
     private AlarmManager scheduler;
-    Session session;
-
-    private void createObservable(){
-        Observable<DataPoint> observable = BumpMonitorService.getObservable();
-        observable.subscribe( new Observer<DataPoint>() {
-
-            @Override
-            public void onSubscribe(Disposable d) {
-
-            }
-
-            @Override
-            public void onNext(DataPoint dataPoint) {
-                session.onAccelerometerEvent(dataPoint.accelerometer_x, dataPoint.accelerometer_y, dataPoint.accelerometer_z);
-                bump_score_txt.setText("" + session.getBumpScore());
-                Log.d(TAG,String.format("received data: %s", dataPoint));
-            }
-
-            @Override
-            public void onError(Throwable e) {
-
-            }
-
-            @Override
-            public void onComplete() {
-
-            }
-        });
-
-    }
+    private Intent myService;
+    private ViewModel viewModel;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        StrictMode.VmPolicy.Builder builder = new StrictMode.VmPolicy.Builder();
-        StrictMode.setVmPolicy(builder.build());
+        viewModel = new ViewModel();
 
         bump_score_txt = findViewById(R.id.bump_score_txt);
+        location_txt = findViewById(R.id.location_txt);
         start_button = findViewById(R.id.start_button);
         share_button = findViewById(R.id.share_button);
+
+        redraw();
+
+        createObservable();
 
         start_button.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
@@ -83,9 +69,7 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        session = new Session(this);
-        createObservable();
-        redraw();
+        ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION}, 1);
     }
 
     protected void onPause() {
@@ -96,42 +80,90 @@ public class MainActivity extends AppCompatActivity {
         super.onResume();
     }
 
-    private void onStartButtonClick() {
-        switch (session.getState())
-        {
-            case STARTED:
-                Log.d(TAG, "stop clicked");
-                scheduler = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
-                scheduler.cancel(scheduledIntent);
+    private void stopMonitorService() {
+        stopService(new Intent(this, BumpMonitorService.class));
+        /*
+        scheduler = (AlarmManager)getSystemService(Context.ALARM_SERVICE);
+        if(scheduledIntent != null) {
+            scheduler.cancel(scheduledIntent);
+        }
 
-                Intent myService = new Intent(MainActivity.this, BumpMonitorService.class);
-                stopService(myService);
-                session.stopSession();
+        if(myService != null) {
+            stopService(myService);
+        }
+
+        myService = new Intent(this, BumpMonitorService.class);
+        stopService(myService);
+        */
+    }
+
+    private void startMonitorService() {
+        startService(new Intent(this, BumpMonitorService.class));
+/*
+        scheduler = (AlarmManager)getSystemService(Context.ALARM_SERVICE);
+        if(scheduledIntent != null) {
+            scheduler.cancel(scheduledIntent);
+        }
+
+        if(myService != null) {
+            stopService(myService);
+        }
+
+        myService = new Intent(this, BumpMonitorService.class);
+        stopService(myService);
+
+        scheduledIntent = PendingIntent.getService(this,0, myService, PendingIntent.FLAG_UPDATE_CURRENT);
+        scheduler.setInexactRepeating(AlarmManager.RTC_WAKEUP, System.currentTimeMillis(), 1000 , scheduledIntent);
+        */
+    }
+
+    private void onStartButtonClick() {
+        switch (viewModel.state) {
+            case STARTED:
+                stopMonitorService();
                 break;
             case STOPPED:
             case NONE:
-                session.startSession();
-                Log.d(TAG,"started session");
-                scheduler = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
-                Intent intent = new Intent(this, BumpMonitorService.class);
-                scheduledIntent = PendingIntent.getService(getApplicationContext(),0, intent, PendingIntent.FLAG_UPDATE_CURRENT);
-                scheduler.setInexactRepeating(AlarmManager.RTC_WAKEUP, System.currentTimeMillis(), 1000 , scheduledIntent);
+                startMonitorService();
                 break;
         }
-
-       redraw();
     }
 
     private void onShareButtonClick() {
-        Intent sharingIntent = new Intent(android.content.Intent.ACTION_SEND);
+        Uri uri = FileProvider.getUriForFile(this, "com.example.myapplication", this.getFileStreamPath("session.txt"));
+        Intent sharingIntent = new Intent(Intent.ACTION_SEND);
         sharingIntent.setType("text/plain");
-        sharingIntent.putExtra(Intent.EXTRA_STREAM, Uri.fromFile(new File("session.txt")));
-        startActivity(Intent.createChooser(sharingIntent, "Share via"));
+        sharingIntent.putExtra(android.content.Intent.EXTRA_STREAM, uri);
+        startActivity(Intent.createChooser(sharingIntent, "Share using"));
+    }
+
+    private void createObservable(){
+        Observable<ViewModel> observable = BumpMonitorService.getObservable();
+        observable.subscribe(new Observer<ViewModel>() {
+            @Override
+            public void onSubscribe(Disposable d) {
+            }
+
+            @Override
+            public void onNext(ViewModel model) {
+                viewModel = model;
+                redraw();
+            }
+
+            @Override
+            public void onError(Throwable e) {
+            }
+
+            @Override
+            public void onComplete() {
+            }
+        });
     }
 
     private void redraw() {
-        switch (session.getState())
-        {
+        location_txt.setText("" + viewModel.dataPoint.latitude + "," + viewModel.dataPoint.longitude);
+        bump_score_txt.setText("" + viewModel.dataPoint.accelerometer_x);
+        switch (viewModel.state) {
             case STARTED:
                 start_button.setText("stop");
                 share_button.setVisibility(View.INVISIBLE);
@@ -146,6 +178,4 @@ public class MainActivity extends AppCompatActivity {
                 break;
         }
     }
-
-
 }

@@ -1,24 +1,32 @@
 package com.example.myapplication;
 
+import android.Manifest;
 import android.app.Service;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
+import android.location.Location;
+import android.location.LocationListener;
+import android.location.LocationManager;
+import android.os.Bundle;
 import android.os.IBinder;
+import android.support.v4.app.ActivityCompat;
 import android.util.Log;
 
 import io.reactivex.Observable;
 import io.reactivex.subjects.PublishSubject;
 
 
-public class BumpMonitorService extends Service implements SensorEventListener {
+public class BumpMonitorService extends Service implements SensorEventListener, LocationListener {
+    private static final String TAG = "CycleCrowd";
     private SensorManager sensorManager;
     private Sensor senAccelerometer;
-    private long lastUpdate = 0;
-    private static final String TAG = "CycleCrowd";
-    private static PublishSubject<DataPoint> current = PublishSubject.create();
+    private LocationManager locationManager;
+    private Session session;
+    private static PublishSubject<MainActivity.ViewModel> publisher = PublishSubject.create();
 
     public BumpMonitorService() {
     }
@@ -26,9 +34,23 @@ public class BumpMonitorService extends Service implements SensorEventListener {
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         Log.d(TAG, "starting BumpMonitorService");
+
+        session = new Session(this);
+        session.startSession();
+
         sensorManager = (SensorManager) getSystemService(SENSOR_SERVICE);
         senAccelerometer = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
         sensorManager.registerListener(this, senAccelerometer, SensorManager.SENSOR_DELAY_NORMAL);
+
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+            locationManager = (LocationManager) getSystemService(LOCATION_SERVICE);
+            locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 1000, 0, this);
+            //locationManager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 1000, 0, this);
+            onLocationChanged(locationManager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER));
+        }
+
+        publish();
+
         return START_STICKY;
     }
 
@@ -40,19 +62,9 @@ public class BumpMonitorService extends Service implements SensorEventListener {
 
     @Override
     public void onSensorChanged(SensorEvent event) {
-        Sensor mySensor = event.sensor;
-        if(mySensor.getType() == Sensor.TYPE_ACCELEROMETER){
-            DataPoint dp = new DataPoint();
-            dp.accelerometer_x = event.values[0];
-            dp.accelerometer_y = event.values[1];
-            dp.accelerometer_z = event.values[2];
-            current.onNext(dp);
-            long curTime = System.currentTimeMillis();
-            if((curTime - lastUpdate) >100){
-                long diffTime = (curTime - lastUpdate);
-                lastUpdate = curTime;
-                Log.d(TAG,String.format("x: %f, y: %f, z: %f",dp.accelerometer_x,dp.accelerometer_y,dp.accelerometer_z));
-            }
+        if (event != null && event.sensor.getType() == Sensor.TYPE_ACCELEROMETER) {
+            session.onAccelerometerEvent(System.currentTimeMillis(), event.values[0], event.values[1], event.values[2]);
+            publish();
         }
     }
 
@@ -62,20 +74,51 @@ public class BumpMonitorService extends Service implements SensorEventListener {
     }
 
     @Override
+    public void onLocationChanged(Location location) {
+        if(location != null) {
+            session.onGeoEvent(location.getTime(), location.getLatitude(), location.getLongitude());
+            publish();
+        }
+    }
+
+    @Override
+    public void onStatusChanged(String provider, int status, Bundle extras) {
+
+    }
+
+    @Override
+    public void onProviderEnabled(String provider) {
+
+    }
+
+    @Override
+    public void onProviderDisabled(String provider) {
+
+    }
+
+    @Override
     public void onTaskRemoved(Intent rootIntent) {
-        super.onTaskRemoved(rootIntent);
         Log.d(TAG,"task removed");
+        super.onTaskRemoved(rootIntent);
+        publish();
     }
 
     @Override
     public void onDestroy() {
         Log.d(TAG,"onDestroy");
         super.onDestroy();
+        session.stopSession();
         sensorManager.unregisterListener(this);
+        locationManager.removeUpdates(this);
+        publish();
     }
 
-    public static Observable<DataPoint> getObservable(){
-        return current;
+    public static Observable<MainActivity.ViewModel> getObservable(){
+        return publisher;
+    }
+
+    private void publish() {
+        publisher.onNext(new MainActivity.ViewModel(session.getState(), session.getLastDataPoint()));
     }
 
 }
