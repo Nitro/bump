@@ -45,7 +45,6 @@ public class BumpMonitorService extends Service implements SensorEventListener, 
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
             locationManager = (LocationManager) getSystemService(LOCATION_SERVICE);
             locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 1000, 0, this);
-            //locationManager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 1000, 0, this);
             onLocationChanged(locationManager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER));
         }
 
@@ -118,7 +117,12 @@ public class BumpMonitorService extends Service implements SensorEventListener, 
     }
 
     private void publish() {
-        publisher.onNext(new MainActivity.ViewModel(session.getState(), session.getLastDataPoint()));
+
+        Vector3 v = new Vector3(session.getLastDataPoint().accelerometer_x, session.getLastDataPoint().accelerometer_y, session.getLastDataPoint().accelerometer_z);
+        float f = Math.abs(new Vector3(0, 0, 0).distance2(v));
+        f = f < 50 ? 0 : Math.min(f, 1000.0f);
+
+        publisher.onNext(new MainActivity.ViewModel(session.getState(), f));
     }
 
 }
