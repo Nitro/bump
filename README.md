@@ -1,7 +1,7 @@
 # CycleWorks
 
 Cycleworks is a service for crowd souring data on cycling journeys. Two observations inspired it's creation 
-* Many policy documents (such as the recent [busconnects project](https://www.busconnects.ie/initiatives/core-bus-corridor-project/) rely on very simple sample cycling data e.g. a count of cyclist entering the city bounded by the canals on a small number of days 
+* Many policy documents (such as the recent [busconnects project](https://www.busconnects.ie/initiatives/core-bus-corridor-project/)) rely on very simple sample cycling data e.g. a count of cyclist entering the city bounded by the canals on a small number of days 
 * Most cyclists in Dublin have a smartphone in their pocket
 
 Cycleworks aims to use the second observation to replace the first with a much richer and more complete data source on cycling journeys.
