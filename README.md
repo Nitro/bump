@@ -17,11 +17,11 @@ Some interesting data points we expect may be possible to capture via a smartpho
 One of the key challenges will be protecting individuals privacy so people are open to sharing their cycling journey info.
 Some privacy topics already identified:
 * Data is alway aggregated
-.. * It is not possible to query an individuals data
+  * It is not possible to query an individuals data
 * Data points are associated with a machine generated unique (per journey) id only
-.. * no personal data is assocaited with this id e.g. no name, phone number or email address
+  * no personal data is assocaited with this id e.g. no name, phone number or email address
 * No data is shared on the first or last 100m of any journey
-.. * in order to ensure starting point and destination are never shared
+  * in order to ensure starting point and destination are never shared
   
   
 # Help
