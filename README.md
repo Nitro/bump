@@ -25,7 +25,7 @@ Some privacy topics already identified:
   
   
 # Help
-So far we have only built a very simple prototype. Thsi is not our full time job and we are not android developers so we could do with some help:
+So far we have only built a very simple prototype. This is not our full time job and we are not android developers so we could do with some help:
 * How to we collect data while smartphone in pocket or bag
 * How to we identitfy start and end of cycling journeys
 * How to we make the data available
